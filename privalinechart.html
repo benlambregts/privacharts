@@ -8,7 +8,6 @@
 
     <title>Priva LineChart</title>
 
-    <script src="js/moment.js"></script>
     <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
 
     <link href="styles/style.css" rel="stylesheet">
@@ -150,11 +149,16 @@
                 var firstPeriod = new Date(data[0].date);
                 var lastPeriod = new Date(data[data.length - 1].date);
 
+
+
                 /* scale domains/ ranges nu met juiste waardes vullen */
                 scaleX.domain(d3.extent(data, function (d) { return d.date; }));
-                scaleY.domain([0, d3.max(data, function (d) { return d.value1; })]).nice();
+                scaleY.domain([d3.min(data, function (d) { return +d.value1; }), d3.max(data, function (d) { return +d.value1; })]).nice();
                 scaleBrushX.domain(scaleX.domain());
                 scaleBrushY.domain(scaleY.domain())
+
+
+
 
                 scalePeriod.range([firstPeriod, lastPeriod]);
 
