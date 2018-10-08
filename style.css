@@ -1,0 +1,42 @@
+body {
+	background-color: white;
+}
+
+.datelabel {
+	color: #254a5d !important;
+	font-style: italic;
+	font-size: 14px;
+	line-height: 42px;
+}
+
+.zoom {
+	cursor: move;
+	fill: none;
+	pointer-events: all;
+}
+
+.handle {
+	fill: #254a5d;
+}
+
+.graph {
+	background-color: white;
+	display: block;
+	width: 700px;
+	height: 400px;
+}
+
+
+.line {
+	clip-path: url(#clip);
+	fill: none;
+}
+
+g path.domain,
+g g.tick line {
+	stroke: darkgray;
+}
+
+g g.tick text {
+	fill: darkgray;
+}
