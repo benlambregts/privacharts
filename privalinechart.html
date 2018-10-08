@@ -20,8 +20,8 @@
 
     <div class="container">
         <h4>Priva Line Chart</h4>
-        <span id="periodFrom">?</span>
-        <span id="periodTill">?</span>
+        <span id="periodFrom">??</span>
+        <span id="periodTill">??</span>
 
         <div class="chart" id="chart">
             <svg id="chartcontent" width="700" height="400" class="graph">
@@ -41,17 +41,18 @@
             var numberOfTicksHorizontal = 8;
             var numberOfTicksVertical = 6;
             var tickSize = 4;
+            var showBrush = true;
 
 
             var curveArray = [
-                { "d3Curve": d3.curveLinear, "curveTitle": "curveLinear" },
-                { "d3Curve": d3.curveStep, "curveTitle": "curveStep" },
-                { "d3Curve": d3.curveStepBefore, "curveTitle": "curveStepBefore" },
-                { "d3Curve": d3.curveStepAfter, "curveTitle": "curveStepAfter" },
-                { "d3Curve": d3.curveBasis, "curveTitle": "curveBasis" },
-                { "d3Curve": d3.curveCardinal, "curveTitle": "curveCardinal" },
-                { "d3Curve": d3.curveMonotoneX, "curveTitle": "curveMonotoneX" },
-                { "d3Curve": d3.curveCatmullRom, "curveTitle": "curveCatmullRom" }
+                { "type": d3.curveLinear},
+                { "type": d3.curveStep},
+                { "type": d3.curveStepBefore},
+                { "type": d3.curveStepAfter},
+                { "type": d3.curveBasis},
+                { "type": d3.curveCardinal},
+                { "type": d3.curveMonotoneX},
+                { "type": d3.curveCatmullRom}
             ];
 
 
@@ -68,18 +69,18 @@
                 "type": "line",
                 "strokewidth": 5,
                 "stroketype": "solid",
-                "curve": curveArray[2].d3Curve
+                "curve": curveArray[6].type
 
             };
 
             const monthName = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
-            var svg = d3.select("#chartcontent"),
-                margin = { top: 0, right: 0, bottom: 110, left: 40 },
-                marginBrush = { top: 330, right: 20, bottom: 30, left: 40 },
-                width = +svg.attr("width") - margin.left - margin.right,
-                height = +svg.attr("height") - margin.top - margin.bottom,
-                heightBrush = +svg.attr("height") - marginBrush.top - marginBrush.bottom;
+            var canvaschart = d3.select("#chartcontent"),
+                margin = { top: 10, right: 0, bottom: 110, left: 100 },
+                marginBrush = { top: 330, right: 0, bottom: 30, left: 100 },
+                width = +canvaschart.attr("width") - margin.left - margin.right,
+                height = +canvaschart.attr("height") - margin.top - margin.bottom,
+                heightBrush = 40;
 
             var parseDate = d3.timeParse("%d-%m-%Y");
 
@@ -94,9 +95,13 @@
                 scaleY = d3.scaleLinear().range([height, 0]),
                 scaleBrushY = d3.scaleLinear().range([heightBrush, 0]),
                 
-                // voor de brush handler: kantelpunt ligt in het midden van de handler. Deze is 6, dus er moet 3 vanaf...
+                // voor de brush handler: kantelpunt ligt in het midden van de handler. Deze is 6px breed, dus hij moet 3 naar links...
                 scalePeriod = d3.scaleTime()
-                    .domain([-3, width-3]);
+                    .domain([-3, width - 3]);
+
+
+
+
 
             var xAxis = d3.axisBottom(scaleX),
                 xAxisBrush = d3.axisBottom(scaleBrushX),
@@ -112,39 +117,42 @@
                 .extent([[0, 0], [width, height]])
                 .on("zoom", zoomed);
 
-
-
-            // lijn voor value
+            // lijn voor value chart
             var singleLine = d3.line()
                 .x(function (d) { return scaleX(d.date); })
                 .y(function (d) { return scaleY(d.value1); })
                 .curve(serieSettings.curve);
 
-            svg.append("defs").append("clipPath")
+            // lijn voor value brush
+            var singleLineBrush = d3.line()
+                .x(function (d) { return scaleX(d.date); })
+                .y(function (d) { return scaleBrushY(d.value1); })
+                .curve(serieSettings.curve);
+
+            canvaschart.append("defs").append("clipPath")
                 .attr("id", "clip")
                 .append("rect")
+                .attr("y", -1 * (serieSettings.strokewidth/2))
                 .attr("width", width)
-                .attr("height", height);
+                .attr("height", height + serieSettings.strokewidth);
 
-            var focus = svg.append("g")
+            var focus = canvaschart.append("g")
                 .attr("class", "focus")
-                .attr("transform", "translate(" + margin.left + ",0)");
+                .attr("transform", "translate(" + margin.left + ", " + margin.top + ")");
 
-            var context = svg.append("g")
+            var context = canvaschart.append("g")
                 .attr("class", "context")
-                .attr("transform", "translate(" + marginBrush.left + "," + marginBrush.top + ")");
+                .attr("transform", "translate(" + eval(marginBrush.left-6) + "," + marginBrush.top + ")");
 
             d3.csv("data/RandomData.csv", type, function (error, data) {
                 if (error) throw error;
 
                 var firstPeriod = new Date(data[0].date);
-
-                console.log(data)
-                var lastPeriod = data[data.length - 1].date;
+                var lastPeriod = new Date(data[data.length - 1].date);
 
                 /* scale domains/ ranges nu met juiste waardes vullen */
                 scaleX.domain(d3.extent(data, function (d) { return d.date; }));
-                scaleY.domain([0, d3.max(data, function (d) { return d.value1; })]);
+                scaleY.domain([0, d3.max(data, function (d) { return d.value1; })]).nice();
                 scaleBrushX.domain(scaleX.domain());
                 scaleBrushY.domain(scaleY.domain())
 
@@ -173,7 +181,7 @@
                     .datum(data)
                     .attr("class", "line")
                     .attr("stroke", function () { return "red" })
-                    .attr("d", singleLine);
+                    .attr("d", singleLineBrush);
 
                 context.append("g")
                     .attr("class", "axis axis--x")
@@ -186,7 +194,7 @@
                     .call(brush.move, scaleX.range());
 
 
-                svg.append("rect")
+                canvaschart.append("rect")
                     .attr("class", "zoom")
                     .attr("width", width)
                     .attr("height", height)
@@ -205,14 +213,12 @@
                 /* datum labels updaten */
                 /* de volgende 4 regels in deze volgorde laten staan, anders gaat het niet goed ivm referenties . dus ABCD en niet ACBD */
                 var startPeriod = scalePeriod(d3.select(this).select(".handle--w").attr("x"));
-                console.log("startdate = " + startPeriod)
                 d3.select("#periodFrom").text(neatDate(startPeriod));
                 var endPeriod = scalePeriod(d3.select(this).select(".handle--e").attr("x"));
                 d3.select("#periodTill").text(neatDate(endPeriod));
-
-                focus.select(".line").attr("d", singleLine);
+                focus.select(".line").attr("d",  singleLine);
                 focus.select(".axis--x").call(xAxis);
-                svg.select(".zoom").call(zoom.transform, d3.zoomIdentity
+                canvaschart.select(".zoom").call(zoom.transform, d3.zoomIdentity
                     .scale(width / (s[1] - s[0]))
                     .translate(-s[0], 0));
             }
@@ -221,7 +227,7 @@
                 if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush") return; // ignore zoom-by-brush
                 var t = d3.event.transform;
                 scaleX.domain(t.rescaleX(scaleBrushX).domain());
-                focus.selectAll(".line").attr("d", singleLine);
+                focus.selectAll(".line").attr("d",  singleLine);
                 focus.select(".axis--x").call(xAxis);
                 context.select(".brush").call(brush.move, scaleX.range().map(t.invertX, t));
             }
@@ -230,7 +236,6 @@
                 d.date = parseDate(d.date);
                 return d;
             }
-
 
 
 
