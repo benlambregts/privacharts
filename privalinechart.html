@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
+    <title>Priva LineChart</title>
+
+    <script src="js/moment.js"></script>
+    <script src="https://d3js.org/d3.v4.min.js" charset="utf-8"></script>
+
+    <link href="styles/style.css" rel="stylesheet">
+
+
+</head>
+
+<body>
+
+    <div class="container">
+        <h4>Priva Line Chart</h4>
+        <span id="periodFrom">??</span>
+        <span id="periodTill">??</span>
+
+        <div class="chart" id="chart">
+            <svg id="chartcontent" width="700" height="400" class="graph">
+                <!-- HIER DE GRAFIEK ZELF -->
+            </svg>
+        </div>
+        <br />
+        <br />
+        <br />
+
+        <script>
+
+
+            // algemene settings
+            var privaColor = ['#00a0ba', '#048976', '#d18a00', '#e83148', '#9e4777', '#77bc1f'];
+            // var neutralColor = ['#333', '#666', '#999', '#ccc'];
+            var numberOfTicksHorizontal = 8;
+            var numberOfTicksVertical = 6;
+            var tickSize = 4;
+
+
+            var curveArray = [
+                { "d3Curve": d3.curveLinear, "curveTitle": "curveLinear" },
+                { "d3Curve": d3.curveStep, "curveTitle": "curveStep" },
+                { "d3Curve": d3.curveStepBefore, "curveTitle": "curveStepBefore" },
+                { "d3Curve": d3.curveStepAfter, "curveTitle": "curveStepAfter" },
+                { "d3Curve": d3.curveBasis, "curveTitle": "curveBasis" },
+                { "d3Curve": d3.curveCardinal, "curveTitle": "curveCardinal" },
+                { "d3Curve": d3.curveMonotoneX, "curveTitle": "curveMonotoneX" },
+                { "d3Curve": d3.curveCatmullRom, "curveTitle": "curveCatmullRom" }
+            ];
+
+
+
+            /* d3 chart code */
+            /* series */
+
+            var serieSettings = {
+                "name": "Elektriciteit",
+                "unity": "kWh",
+                "label": "value1",
+                "visible": true,
+                "color": "#00A0BA",
+                "type": "line",
+                "strokewidth": 5,
+                "stroketype": "solid",
+                "curve": curveArray[2].d3Curve
+
+            };
+
+            const monthName = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+
+            var svg = d3.select("#chartcontent"),
+                margin = { top: 0, right: 0, bottom: 110, left: 40 },
+                marginBrush = { top: 330, right: 20, bottom: 30, left: 40 },
+                width = +svg.attr("width") - margin.left - margin.right,
+                height = +svg.attr("height") - margin.top - margin.bottom,
+                heightBrush = +svg.attr("height") - marginBrush.top - marginBrush.bottom;
+
+            var parseDate = d3.timeParse("%d-%m-%Y");
+
+            function neatDate(thisdate) {
+                return thisdate.getDate() + "- " + monthName[(thisdate.getMonth())] + "- " + thisdate.getFullYear();
+            }
+
+
+            /* scales */
+            var scaleX = d3.scaleTime().range([0, width]),
+                scaleBrushX = d3.scaleTime().range([0, width]),
+                scaleY = d3.scaleLinear().range([height, 0]),
+                scaleBrushY = d3.scaleLinear().range([heightBrush, 0]),
+                
+                // voor de brush handler: kantelpunt ligt in het midden van de handler. Deze is 6, dus er moet 3 vanaf...
+                scalePeriod = d3.scaleTime()
+                    .domain([-3, width-3]);
+
+            var xAxis = d3.axisBottom(scaleX),
+                xAxisBrush = d3.axisBottom(scaleBrushX),
+                yAxis = d3.axisLeft(scaleY).tickSize(tickSize);
+
+            var brush = d3.brushX()
+                .extent([[0, 0], [width, heightBrush]])
+                .on("brush end", brushed);
+
+            var zoom = d3.zoom()
+                .scaleExtent([1, Infinity])
+                .translateExtent([[0, 0], [width, height]])
+                .extent([[0, 0], [width, height]])
+                .on("zoom", zoomed);
+
+
+
+            // lijn voor value
+            var singleLine = d3.line()
+                .x(function (d) { return scaleX(d.date); })
+                .y(function (d) { return scaleY(d.value1); })
+                .curve(serieSettings.curve);
+
+            svg.append("defs").append("clipPath")
+                .attr("id", "clip")
+                .append("rect")
+                .attr("width", width)
+                .attr("height", height);
+
+            var focus = svg.append("g")
+                .attr("class", "focus")
+                .attr("transform", "translate(" + margin.left + ",0)");
+
+            var context = svg.append("g")
+                .attr("class", "context")
+                .attr("transform", "translate(" + marginBrush.left + "," + marginBrush.top + ")");
+
+            d3.csv("data/RandomData.csv", type, function (error, data) {
+                if (error) throw error;
+
+                var firstPeriod = new Date(data[0].date);
+
+                console.log(data)
+                var lastPeriod = data[data.length - 1].date;
+
+                /* scale domains/ ranges nu met juiste waardes vullen */
+                scaleX.domain(d3.extent(data, function (d) { return d.date; }));
+                scaleY.domain([0, d3.max(data, function (d) { return d.value1; })]);
+                scaleBrushX.domain(scaleX.domain());
+                scaleBrushY.domain(scaleY.domain())
+
+                scalePeriod.range([firstPeriod, lastPeriod]);
+
+                focus.append("g").append("path")
+                    .datum(data)
+                    .attr("class", "line")
+                    .attr("fill", "none")
+                    .attr("stroke", function () { return serieSettings.color })
+                    .attr("stroke-width", function () { return serieSettings.strokewidth })
+                    .attr("d", singleLine);
+
+
+                focus.append("g")
+                    .attr("class", "axis axis--x")
+                    .attr("transform", "translate(0," + height + ")")
+                    .call(xAxis.ticks(numberOfTicksHorizontal));
+
+                focus.append("g")
+                    .attr("class", "axis axis--y")
+                    .call(yAxis.ticks(numberOfTicksVertical));
+
+
+                context.append("path")
+                    .datum(data)
+                    .attr("class", "line")
+                    .attr("stroke", function () { return "red" })
+                    .attr("d", singleLine);
+
+                context.append("g")
+                    .attr("class", "axis axis--x")
+                    .attr("transform", "translate(0," + heightBrush + ")")
+                    .call(xAxisBrush);
+
+                context.append("g")
+                    .attr("class", "brush")
+                    .call(brush)
+                    .call(brush.move, scaleX.range());
+
+
+                svg.append("rect")
+                    .attr("class", "zoom")
+                    .attr("width", width)
+                    .attr("height", height)
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+                    .call(zoom);
+
+
+            });
+
+
+            function brushed() {
+                if (d3.event.sourceEvent && d3.event.sourceEvent.type === "zoom") return; // ignore brush-by-zoom
+                var s = d3.event.selection || scaleBrushX.range();
+                scaleX.domain(s.map(scaleBrushX.invert, scaleBrushX));
+
+                /* datum labels updaten */
+                /* de volgende 4 regels in deze volgorde laten staan, anders gaat het niet goed ivm referenties . dus ABCD en niet ACBD */
+                var startPeriod = scalePeriod(d3.select(this).select(".handle--w").attr("x"));
+                console.log("startdate = " + startPeriod)
+                d3.select("#periodFrom").text(neatDate(startPeriod));
+                var endPeriod = scalePeriod(d3.select(this).select(".handle--e").attr("x"));
+                d3.select("#periodTill").text(neatDate(endPeriod));
+
+                focus.select(".line").attr("d", singleLine);
+                focus.select(".axis--x").call(xAxis);
+                svg.select(".zoom").call(zoom.transform, d3.zoomIdentity
+                    .scale(width / (s[1] - s[0]))
+                    .translate(-s[0], 0));
+            }
+
+            function zoomed() {
+                if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush") return; // ignore zoom-by-brush
+                var t = d3.event.transform;
+                scaleX.domain(t.rescaleX(scaleBrushX).domain());
+                focus.selectAll(".line").attr("d", singleLine);
+                focus.select(".axis--x").call(xAxis);
+                context.select(".brush").call(brush.move, scaleX.range().map(t.invertX, t));
+            }
+
+            function type(d) {
+                d.date = parseDate(d.date);
+                return d;
+            }
+
+
+
+
+
+
+        </script>
+</body>
+
+</html>
