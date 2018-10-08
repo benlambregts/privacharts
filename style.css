@@ -9,6 +9,12 @@ body {
 	line-height: 42px;
 }
 
+svg {
+	overflow-y: visible;
+}
+
+
+
 .zoom {
 	cursor: move;
 	fill: none;
